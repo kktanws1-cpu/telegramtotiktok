@@ -42,7 +42,8 @@ def _headers():
     }
 
 
-def _init_upload(image_count, caption):
+def _init_pull(photo_urls, caption):
+    """Initialize a PHOTO direct post using PULL_FROM_URL (required for photos)."""
     payload = {
         "media_type": "PHOTO",
         "post_mode": "DIRECT_POST",
@@ -53,8 +54,8 @@ def _init_upload(image_count, caption):
             "disable_comment": os.environ.get("TIKTOK_ALLOW_COMMENT") != "true",
         },
         "source_info": {
-            "source": "FILE_UPLOAD",
-            "photo_images_count": image_count,
+            "source": "PULL_FROM_URL",
+            "photo_images": photo_urls,
             "photo_cover_index": 0,  # 0-based; first image is the cover
         },
     }
@@ -62,21 +63,10 @@ def _init_upload(image_count, caption):
     data = r.json()
     if data.get("error", {}).get("code") != "ok":
         raise RuntimeError(f"TikTok init failed: {data.get('error')}")
-    return data["data"]["publish_id"], data["data"]["upload_urls"]
+    return data["data"]["publish_id"]
 
 
-def _upload_images(upload_urls, file_paths):
-    for i, (url, path) in enumerate(zip(upload_urls, file_paths)):
-        print(f"[tiktok] Uploading image {i + 1}/{len(file_paths)}...")
-        size = os.path.getsize(path)
-        with open(path, "rb") as f:
-            requests.put(url, data=f, headers={
-                "Content-Type": "image/jpeg",
-                "Content-Length": str(size),
-            })
-
-
-def _wait_for_publish(publish_id, timeout=60):
+def _wait_for_publish(publish_id, timeout=120):
     deadline = time.time() + timeout
     while time.time() < deadline:
         r = requests.post(
@@ -94,14 +84,14 @@ def _wait_for_publish(publish_id, timeout=60):
     raise RuntimeError("TikTok publish timed out")
 
 
-def post_images_to_tiktok(file_paths, caption=""):
+def post_images_to_tiktok(photo_urls, caption=""):
+    """photo_urls: list of public, domain-verified image URLs (PULL_FROM_URL)."""
     if not (_ACCESS_TOKEN["value"] or os.environ.get("TIKTOK_ACCESS_TOKEN")):
         raise RuntimeError("No TikTok access token available (refresh may have failed)")
-    if len(file_paths) > 35:
+    if len(photo_urls) > 35:
         raise RuntimeError("Max 35 images per TikTok post")
 
-    publish_id, upload_urls = _init_upload(len(file_paths), caption)
+    publish_id = _init_pull(photo_urls, caption)
     print(f"[tiktok] publish_id: {publish_id}")
-    _upload_images(upload_urls, file_paths)
     _wait_for_publish(publish_id)
     print(f"[tiktok] Posted! publish_id: {publish_id}")

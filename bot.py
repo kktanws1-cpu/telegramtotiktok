@@ -8,6 +8,7 @@ from src.fetch import get_client, fetch_new_photos
 from src.downloader import download_photos, cleanup
 from src.tiktok import post_images_to_tiktok, refresh_access_token
 from src.github_secrets import update_repo_secret
+from src.hosting import upload_photo, wait_until_live
 
 STATE_FILE = pathlib.Path(__file__).parent / "state.json"
 
@@ -73,8 +74,16 @@ async def main():
             local_files = []
             try:
                 local_files = await download_photos(client, group)
-                post_images_to_tiktok(local_files, caption)
-                print(f"[bot] Posted {len(local_files)} photo(s) to TikTok")
+                # Host each photo publicly (GitHub Pages) so TikTok can pull it
+                photo_urls = []
+                for path in local_files:
+                    url = upload_photo(path)
+                    photo_urls.append(url)
+                # Make sure the last one is live (Pages publishes them together)
+                if photo_urls:
+                    wait_until_live(photo_urls[-1])
+                post_images_to_tiktok(photo_urls, caption)
+                print(f"[bot] Posted {len(photo_urls)} photo(s) to TikTok")
             except Exception as e:
                 print(f"[bot] Failed: {e}", file=sys.stderr)
             finally:
