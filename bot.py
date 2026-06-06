@@ -47,6 +47,13 @@ async def main():
 
     client = await get_client()
     try:
+        try:
+            entity = await client.get_entity(int(channel) if str(channel).lstrip("-").isdigit() else channel)
+            name = getattr(entity, "title", None) or getattr(entity, "username", None) or channel
+            print(f"[bot] Reading from channel: '{name}' (id={getattr(entity, 'id', channel)})")
+        except Exception as e:
+            print(f"[bot] Could not resolve channel '{channel}': {e}", file=sys.stderr)
+
         groups, new_last_id = await fetch_new_photos(client, channel, state["last_id"])
 
         if not groups:
