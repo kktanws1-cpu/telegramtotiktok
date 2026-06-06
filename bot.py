@@ -49,6 +49,12 @@ async def main():
             print("[bot] No new photos.")
             return
 
+        test_mode = os.environ.get("TEST_ONE_PHOTO") == "true"
+        if test_mode:
+            # Post exactly one photo and do NOT advance state (keep backlog intact)
+            groups = [groups[0][:1]]
+            print("[bot] TEST MODE: posting only 1 photo, state will not be saved")
+
         print(f"[bot] Found {len(groups)} album(s) to post")
 
         for group in groups:
@@ -63,9 +69,10 @@ async def main():
             finally:
                 cleanup(local_files)
 
-        state["last_id"] = new_last_id
-        save_state(state)
-        print(f"[bot] State saved. Next from id: {new_last_id}")
+        if not test_mode:
+            state["last_id"] = new_last_id
+            save_state(state)
+            print(f"[bot] State saved. Next from id: {new_last_id}")
     finally:
         await client.disconnect()
 

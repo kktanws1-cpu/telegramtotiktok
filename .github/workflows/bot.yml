@@ -31,3 +31,4 @@ jobs:
           TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
           TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
           GH_PAT: ${{ secrets.GH_PAT }}
+          TEST_ONE_PHOTO: "true"
