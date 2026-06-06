@@ -96,8 +96,8 @@ def _wait_for_publish(publish_id, timeout=60):
 
 
 def post_images_to_tiktok(file_paths, caption=""):
-    if not os.environ.get("TIKTOK_ACCESS_TOKEN"):
-        raise RuntimeError("TIKTOK_ACCESS_TOKEN is not set")
+    if not (_ACCESS_TOKEN["value"] or os.environ.get("TIKTOK_ACCESS_TOKEN")):
+        raise RuntimeError("No TikTok access token available (refresh may have failed)")
     if len(file_paths) > 35:
         raise RuntimeError("Max 35 images per TikTok post")
 
