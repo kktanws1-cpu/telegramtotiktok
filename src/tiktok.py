@@ -48,15 +48,14 @@ def _init_upload(image_count, caption):
         "post_mode": "DIRECT_POST",
         "post_info": {
             "title": caption or os.environ.get("DEFAULT_CAPTION", ""),
-            "privacy_level": os.environ.get("TIKTOK_PRIVACY_LEVEL", "PUBLIC_TO_EVERYONE"),
+            # Unaudited/sandbox apps must use SELF_ONLY; override via secret once approved.
+            "privacy_level": os.environ.get("TIKTOK_PRIVACY_LEVEL", "SELF_ONLY"),
             "disable_comment": os.environ.get("TIKTOK_ALLOW_COMMENT") != "true",
-            "disable_duet": os.environ.get("TIKTOK_ALLOW_DUET") != "true",
-            "disable_stitch": os.environ.get("TIKTOK_ALLOW_STITCH") != "true",
         },
         "source_info": {
             "source": "FILE_UPLOAD",
             "photo_images_count": image_count,
-            "photo_cover_index": 1,
+            "photo_cover_index": 0,  # 0-based; first image is the cover
         },
     }
     r = requests.post(f"{TIKTOK_API}/post/publish/content/init/", json=payload, headers=_headers())
