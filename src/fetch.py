@@ -13,8 +13,18 @@ async def get_client():
     return client
 
 
+def _coerce_channel(channel):
+    """Convert a numeric channel id (possibly a string) to int so Telethon
+    treats it as an ID, not a username."""
+    s = str(channel).strip()
+    if s.lstrip("-").isdigit():
+        return int(s)
+    return channel
+
+
 async def fetch_new_photos(client, channel, last_id):
     """Return list of (grouped_id, [messages]) for all photo messages after last_id."""
+    channel = _coerce_channel(channel)
     messages = []
     async for msg in client.iter_messages(channel, min_id=last_id, limit=100):
         if msg.media and isinstance(msg.media, MessageMediaPhoto):
