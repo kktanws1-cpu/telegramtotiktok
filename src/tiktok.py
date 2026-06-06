@@ -74,12 +74,14 @@ def _wait_for_publish(publish_id, timeout=120):
             json={"publish_id": publish_id},
             headers=_headers(),
         )
-        status = r.json().get("data", {}).get("status")
+        data = r.json().get("data", {})
+        status = data.get("status")
         print(f"[tiktok] Status: {status}")
         if status == "PUBLISH_COMPLETE":
             return
         if status == "FAILED":
-            raise RuntimeError(f"Publish failed (publish_id: {publish_id})")
+            reason = data.get("fail_reason") or data.get("error_code") or data
+            raise RuntimeError(f"Publish failed: {reason} | full={data}")
         time.sleep(5)
     raise RuntimeError("TikTok publish timed out")
 
