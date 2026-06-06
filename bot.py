@@ -14,9 +14,13 @@ STATE_FILE = pathlib.Path(__file__).parent / "state.json"
 
 def load_state():
     try:
-        return json.loads(STATE_FILE.read_text())
+        data = json.loads(STATE_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
-        return {"last_id": 0}
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    data.setdefault("last_id", 0)
+    return data
 
 
 def save_state(state):
