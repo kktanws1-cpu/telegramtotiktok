@@ -9,6 +9,7 @@ from src.downloader import download_photos, cleanup
 from src.tiktok import post_images_to_tiktok, refresh_access_token
 from src.github_secrets import update_repo_secret
 from src.hosting import upload_photo, wait_until_live
+from src.image_prep import prepare_for_tiktok
 
 STATE_FILE = pathlib.Path(__file__).parent / "state.json"
 
@@ -74,9 +75,10 @@ async def main():
             local_files = []
             try:
                 local_files = await download_photos(client, group)
-                # Host each photo publicly (GitHub Pages) so TikTok can pull it
+                # Resize/re-encode to meet TikTok's photo requirements, then host
                 photo_urls = []
                 for path in local_files:
+                    prepare_for_tiktok(path)
                     url = upload_photo(path)
                     photo_urls.append(url)
                 # Make sure the last one is live (Pages publishes them together)
