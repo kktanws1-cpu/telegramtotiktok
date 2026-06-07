@@ -43,22 +43,34 @@ def _headers():
 
 
 def _init_pull(photo_urls, caption):
-    """Initialize a PHOTO direct post using PULL_FROM_URL (required for photos)."""
+    """Initialize a PHOTO post via PULL_FROM_URL (required for photos).
+
+    Two modes (set TIKTOK_POST_MODE):
+      MEDIA_UPLOAD (default) - sends to the creator's TikTok inbox/drafts to
+                               review and publish manually. No auto-posting.
+      DIRECT_POST            - posts straight to the profile (needs post_info).
+    """
+    post_mode = os.environ.get("TIKTOK_POST_MODE", "MEDIA_UPLOAD")
     payload = {
         "media_type": "PHOTO",
-        "post_mode": "DIRECT_POST",
-        "post_info": {
-            "title": caption or os.environ.get("DEFAULT_CAPTION", ""),
-            # Unaudited/sandbox apps must use SELF_ONLY; override via secret once approved.
-            "privacy_level": os.environ.get("TIKTOK_PRIVACY_LEVEL", "SELF_ONLY"),
-            "disable_comment": os.environ.get("TIKTOK_ALLOW_COMMENT") != "true",
-        },
+        "post_mode": post_mode,
         "source_info": {
             "source": "PULL_FROM_URL",
             "photo_images": photo_urls,
             "photo_cover_index": 0,  # 0-based; first image is the cover
         },
     }
+    if post_mode == "DIRECT_POST":
+        # post_info (title/privacy) is only used for direct posting.
+        payload["post_info"] = {
+            "title": caption or os.environ.get("DEFAULT_CAPTION", ""),
+            # Unaudited/sandbox apps must use SELF_ONLY; override via secret once approved.
+            "privacy_level": os.environ.get("TIKTOK_PRIVACY_LEVEL", "SELF_ONLY"),
+            "disable_comment": os.environ.get("TIKTOK_ALLOW_COMMENT") != "true",
+        }
+    else:
+        # Inbox/draft mode: include the caption as the title for convenience.
+        payload["post_info"] = {"title": caption or os.environ.get("DEFAULT_CAPTION", "")}
     r = requests.post(f"{TIKTOK_API}/post/publish/content/init/", json=payload, headers=_headers())
     data = r.json()
     if data.get("error", {}).get("code") != "ok":
@@ -77,7 +89,8 @@ def _wait_for_publish(publish_id, timeout=120):
         data = r.json().get("data", {})
         status = data.get("status")
         print(f"[tiktok] Status: {status}")
-        if status == "PUBLISH_COMPLETE":
+        # PUBLISH_COMPLETE = direct post done; SEND_TO_USER_INBOX = draft sent for review
+        if status in ("PUBLISH_COMPLETE", "SEND_TO_USER_INBOX"):
             return
         if status == "FAILED":
             reason = data.get("fail_reason") or data.get("error_code") or data
@@ -96,4 +109,8 @@ def post_images_to_tiktok(photo_urls, caption=""):
     publish_id = _init_pull(photo_urls, caption)
     print(f"[tiktok] publish_id: {publish_id}")
     _wait_for_publish(publish_id)
-    print(f"[tiktok] Posted! publish_id: {publish_id}")
+    mode = os.environ.get("TIKTOK_POST_MODE", "MEDIA_UPLOAD")
+    if mode == "DIRECT_POST":
+        print(f"[tiktok] Posted to profile! publish_id: {publish_id}")
+    else:
+        print(f"[tiktok] Sent to your TikTok inbox for review! publish_id: {publish_id}")
