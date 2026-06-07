@@ -56,6 +56,37 @@ def upload_photo(local_path):
     return f"{pages_base_url()}/photos/{filename}"
 
 
+def commit_file(repo_path, content_bytes, message):
+    """Create or update a file in the repo via the Contents API (persists state)."""
+    token = os.environ["GITHUB_TOKEN"]
+    owner, name = _repo_parts()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    api = f"https://api.github.com/repos/{owner}/{name}/contents/{repo_path}"
+
+    # If the file already exists we must pass its current sha to update it.
+    sha = None
+    g = requests.get(api, headers=headers, params={"ref": "main"})
+    if g.status_code == 200:
+        sha = g.json().get("sha")
+
+    body = {
+        "message": message,
+        "content": base64.b64encode(content_bytes).decode(),
+        "branch": "main",
+    }
+    if sha:
+        body["sha"] = sha
+
+    r = requests.put(api, headers=headers, json=body)
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"GitHub commit failed: {r.status_code} {r.text}")
+    print(f"[hosting] Committed {repo_path}")
+
+
 def wait_until_live(url, timeout=300):
     """Poll the URL until GitHub Pages has published it (HTTP 200)."""
     deadline = time.time() + timeout

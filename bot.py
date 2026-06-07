@@ -8,7 +8,7 @@ from src.fetch import get_client, fetch_new_photos
 from src.downloader import download_photos, cleanup
 from src.tiktok import post_images_to_tiktok, refresh_access_token
 from src.github_secrets import update_repo_secret
-from src.hosting import upload_photo, wait_until_live
+from src.hosting import upload_photo, wait_until_live, commit_file
 from src.image_prep import prepare_for_tiktok
 
 STATE_FILE = pathlib.Path(__file__).parent / "state.json"
@@ -58,6 +58,14 @@ async def main():
 
         groups, new_last_id = await fetch_new_photos(client, channel, state["last_id"])
 
+        # One-time baseline: skip all existing photos, just record where we are.
+        if os.environ.get("SET_BASELINE") == "true":
+            state["last_id"] = new_last_id
+            save_state(state)
+            commit_file("state.json", json.dumps(state, indent=2).encode(), "Set bot baseline")
+            print(f"[bot] BASELINE SET to id {new_last_id}. Backlog skipped; only new photos will post.")
+            return
+
         if not groups:
             print("[bot] No new photos.")
             return
@@ -94,6 +102,7 @@ async def main():
         if not test_mode:
             state["last_id"] = new_last_id
             save_state(state)
+            commit_file("state.json", json.dumps(state, indent=2).encode(), "Update bot state")
             print(f"[bot] State saved. Next from id: {new_last_id}")
     finally:
         await client.disconnect()
