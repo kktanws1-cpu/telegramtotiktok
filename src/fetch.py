@@ -25,8 +25,9 @@ def _coerce_channel(channel):
 async def fetch_new_photos(client, channel, last_id):
     """Return list of (grouped_id, [messages]) for all photo messages after last_id."""
     channel = _coerce_channel(channel)
+    scan_limit = int(os.environ.get("SCAN_LIMIT", "200"))
     messages = []
-    async for msg in client.iter_messages(channel, min_id=last_id, limit=100):
+    async for msg in client.iter_messages(channel, min_id=last_id, limit=scan_limit):
         if msg.media and isinstance(msg.media, MessageMediaPhoto):
             messages.append(msg)
 
