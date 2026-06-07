@@ -56,7 +56,9 @@ async def main():
         except Exception as e:
             print(f"[bot] Could not resolve channel '{channel}': {e}", file=sys.stderr)
 
-        groups, new_last_id = await fetch_new_photos(client, channel, state["last_id"])
+        # In test mode, ignore the saved baseline so we can pull an existing photo.
+        fetch_from = 0 if os.environ.get("TEST_ONE_PHOTO") == "true" else state["last_id"]
+        groups, new_last_id = await fetch_new_photos(client, channel, fetch_from)
 
         # One-time baseline: skip all existing photos, just record where we are.
         if os.environ.get("SET_BASELINE") == "true":
