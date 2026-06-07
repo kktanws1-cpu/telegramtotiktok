@@ -51,6 +51,8 @@ def _init_pull(photo_urls, caption):
       DIRECT_POST            - posts straight to the profile (needs post_info).
     """
     post_mode = os.environ.get("TIKTOK_POST_MODE", "MEDIA_UPLOAD")
+    # TikTok title max length is 90 chars; truncate to avoid "post info incorrect".
+    title = (caption or os.environ.get("DEFAULT_CAPTION", ""))[:90]
     payload = {
         "media_type": "PHOTO",
         "post_mode": post_mode,
@@ -63,14 +65,14 @@ def _init_pull(photo_urls, caption):
     if post_mode == "DIRECT_POST":
         # post_info (title/privacy) is only used for direct posting.
         payload["post_info"] = {
-            "title": caption or os.environ.get("DEFAULT_CAPTION", ""),
+            "title": title,
             # Unaudited/sandbox apps must use SELF_ONLY; override via secret once approved.
             "privacy_level": os.environ.get("TIKTOK_PRIVACY_LEVEL", "SELF_ONLY"),
             "disable_comment": os.environ.get("TIKTOK_ALLOW_COMMENT") != "true",
         }
     else:
         # Inbox/draft mode: include the caption as the title for convenience.
-        payload["post_info"] = {"title": caption or os.environ.get("DEFAULT_CAPTION", "")}
+        payload["post_info"] = {"title": title}
     r = requests.post(f"{TIKTOK_API}/post/publish/content/init/", json=payload, headers=_headers())
     data = r.json()
     if data.get("error", {}).get("code") != "ok":

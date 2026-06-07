@@ -68,6 +68,11 @@ async def main():
             print(f"[bot] BASELINE SET to id {new_last_id}. Backlog skipped; only new photos will post.")
             return
 
+        # Skip any photos already successfully sent (prevents duplicate drafts on re-runs)
+        sent_ids = set(state.get("sent_ids", []))
+        groups = [[m for m in g if m.id not in sent_ids] for g in groups]
+        groups = [g for g in groups if g]
+
         if not groups:
             print("[bot] No new photos.")
             return
@@ -96,6 +101,9 @@ async def main():
                     wait_until_live(photo_urls[-1])
                 post_images_to_tiktok(photo_urls, caption)
                 print(f"[bot] Posted {len(photo_urls)} photo(s) to TikTok")
+                # Record these message ids as sent so re-runs skip them
+                if not test_mode:
+                    sent_ids.update(m.id for m in group)
             except Exception as e:
                 print(f"[bot] Failed: {e}", file=sys.stderr)
             finally:
@@ -103,9 +111,11 @@ async def main():
 
         if not test_mode:
             state["last_id"] = new_last_id
+            # Keep the most recent 2000 sent ids (plenty to prevent duplicates)
+            state["sent_ids"] = sorted(sent_ids)[-2000:]
             save_state(state)
             commit_file("state.json", json.dumps(state, indent=2).encode(), "Update bot state")
-            print(f"[bot] State saved. Next from id: {new_last_id}")
+            print(f"[bot] State saved. Next from id: {new_last_id} ({len(sent_ids)} sent total)")
     finally:
         await client.disconnect()
 
